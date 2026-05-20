@@ -35,25 +35,72 @@
 
 ---
 
-## Quick Start
+## Installation
 
-### Install (Claude Code)
+### Claude Code (recommended)
 ```bash
 claude install-skill https://github.com/hammadshakeelai/kaggle-run-skill
 ```
 
-### Install (skills.sh — works with Cursor, Gemini CLI, Codex, and 35+ agents)
+### skills.sh — Cursor, Gemini CLI, Codex, Windsurf, and 35+ agents
 ```bash
 npx skills add hammadshakeelai/kaggle-run-skill
 ```
 
-### Manual Install
+### Git clone + copy (Mac / Linux)
 ```bash
-# Global (all projects)
-cp -r skills/kaggle-run ~/.claude/skills/
+git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
+cp -r kaggle-run-skill/skills/kaggle-run ~/.claude/skills/
+```
 
-# Project-only
+### Git clone + copy (Windows PowerShell)
+```powershell
+git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
+Copy-Item -Recurse kaggle-run-skill\skills\kaggle-run "$env:USERPROFILE\.claude\skills\"
+```
+
+### curl one-liner (Mac / Linux)
+```bash
+mkdir -p ~/.claude/skills/kaggle-run
+curl -fsSL https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run/SKILL.md \
+  -o ~/.claude/skills/kaggle-run/SKILL.md
+```
+
+### wget one-liner (Linux)
+```bash
+mkdir -p ~/.claude/skills/kaggle-run
+wget -q https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run/SKILL.md \
+  -O ~/.claude/skills/kaggle-run/SKILL.md
+```
+
+### Cursor / Windsurf (via skills.sh)
+```bash
+npx skills add hammadshakeelai/kaggle-run-skill --agent cursor
+```
+Then use `/kaggle-run` in any Cursor chat.
+
+### Gemini CLI
+```bash
+npx skills add hammadshakeelai/kaggle-run-skill --agent gemini
+```
+
+### OpenAI Codex CLI
+```bash
+npx skills add hammadshakeelai/kaggle-run-skill --agent codex
+```
+
+### Project-only install (skill applies to one repo only)
+```bash
+# Mac / Linux
 cp -r skills/kaggle-run .claude/skills/
+
+# Windows
+Copy-Item -Recurse skills\kaggle-run .claude\skills\
+```
+
+### Verify installation
+```
+/kaggle-run --help
 ```
 
 ---
