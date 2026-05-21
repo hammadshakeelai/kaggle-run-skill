@@ -575,14 +575,23 @@ print("=== STDOUT (last 500) ===\n", stdout[-500:])
 | `KeyError: 'archive_path'` | Failed-download fallback dict missing keys | Add `"archive_path": None, "archive_sha256": None` to the `except` fallback dict in download loop |
 | `FileNotFoundError: No file matched [...] under /kaggle/input/CICIOT23` | Hardcoded `DATASETS_ROOT / "CICIOT23"` path bypasses `_ds_root` | Replace hardcoded paths with `_ds_root("CICIOT23", "ciciot2023")` etc. |
 | `FileNotFoundError: Dataset dir for '...' not found` in `_ds_root` | Pre-attached datasets not at expected paths | Add `/kaggle/input/datasets/` as first search root in `_ds_root` |
-| `ValueError: 'attack' is not in list` | Binary pipeline has classes `["benign","malicious"]`; code looks for `"attack"` | Replace `.index("attack")` with `_pos = next((c for c in ["malicious","attack"] if c in model.classes_), model.classes_[-1]); .index(_pos)` |
+| `KeyError: 'benign'` or `KeyError: 'malicious'` | Tiny sample slice has only one class; `classification_report` omits the missing class entirely | Replace `report[label]["f1-score"]` with `(report.get(label) or {}).get("f1-score", 0.0)` |
+| `ValueError: At least one label specified must be in y_true` | Dataset uses `"malicious"` but code expects `"attack"` for the positive class | Normalise at scoring entry: `y_true = np.where(np.isin(y_true, ["malicious","attack"]), "attack", "benign")` |
+| `ValueError: 'attack' is not in list` | Binary pipeline has classes `["benign","malicious"]`; code looks for `"attack"` | Replace `.index("attack")` with `next((i for i,c in enumerate(model.classes_) if c in ("attack","malicious")), -1)` |
 | `AssertionError` at `assert all(row == ["malicious", "benign"]` | Tiny sample may lack both label classes | Replace hard `assert` lines with soft `if not ...: print("[WARN] ...")` |
+| `NameError: name 'live_feature_coverage_df' is not defined` | Suite gate stub cell missing the variable | Inject `varname = {}  # auto-stub` before the gate's final `print(...)` line; use `{}` not `pd.DataFrame()` (pd may not be in scope) |
 | `NameError: name 'canonical_raw_replay_df' is not defined` | Missing execution cell — variable used before being assigned | Insert code cell that calls `run_canonical_paper_replay_from_raw(...)` and assigns result before the manifest display cell |
+| `DeadKernelError: Kernel died` with no Python traceback | Linux OOM killer; often caused by globbing thousands of CSV files from a 14GB+ dataset | Cap file list: `select_representative_files(sorted(dir.glob("**/*.csv")), max_files=20)` |
+| `[Suite] sample=None` → full run at tiny sample size | `LIVE_REPLAY_CONFIG['sample_per_dataset']` is explicitly `None`; `.get(key, default)` only applies default when key is absent | Use `(config.get('sample_per_dataset') or PHASE1_SAMPLE_PER_DATASET)` — `or` fires on both absent and `None` |
 | `disk space` / `MemoryError` / `Killed` | Datasets too large for 20 GB disk quota | Reduce SAMPLE to 200; add `if shutil.disk_usage("/kaggle/working").free/1e9 < 3.5: raise RuntimeError("disk full")` guard |
 | `No module named 'X'` | Missing package on Kaggle image | Insert `%pip install -q X` as first code cell |
 | `CUDA out of memory` | GPU OOM | Add `import torch; torch.cuda.empty_cache()` before training; halve batch size |
 
+**Rule ordering matters:** Apply specific-error rules before generic `KeyError` catch-alls. After a specific rule finds its target cell and fails to patch (patch already applied), `return False` immediately — do not fall through to the generic handler, which may patch the wrong cell.
+
 **Critical:** Never use `\""""` at end of a Python triple-quoted string — always close with `"""` alone to avoid stray `"` injection into notebook source.
+
+> Full technique write-up with root cause analysis and future work: [docs/AUTOFIX_TECHNIQUE.md](../../docs/AUTOFIX_TECHNIQUE.md)
 
 Edit the notebook JSON in-place, save with `ensure_ascii=True`, push again. Count retries; stop at 10 and report.
 

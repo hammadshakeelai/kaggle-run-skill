@@ -144,26 +144,32 @@ Phase 1 gets you `python_coder`, `api_notebook_creator`, `dataset_creator`, `api
 
 When the kernel errors, the skill automatically:
 
-1. Downloads the log
-2. Matches the error against the fix table
-3. Patches the notebook JSON
-4. Re-pushes and resumes monitoring
+1. Downloads the NDJSON log
+2. Parses stderr lines and matches against the fix table
+3. Surgically patches the notebook JSON (never rewrites whole cells blindly)
+4. Re-pushes and resumes monitoring — up to 10× per session
 
 Errors handled automatically:
 
-| Error | Fix Applied |
-|---|---|
-| `SyntaxError: unterminated string literal` | Removes stray `"` after closing `)` |
-| `NameError: 'runtime_environment'` | Restores deleted variable definition |
-| `KeyError: 'archive_path'` | Adds missing keys to fallback result dict |
-| `FileNotFoundError` (hardcoded dataset path) | Replaces with `_ds_root()` dynamic lookup |
-| `FileNotFoundError` in `_ds_root` | Adds `/kaggle/input/datasets/` as search root |
-| `ValueError: 'attack' is not in list` | Uses flexible positive-class lookup |
-| `AssertionError` on label checks | Converts hard asserts to soft warnings |
-| `NameError: 'canonical_raw_replay_df'` | Inserts missing execution cell |
-| Disk space / OOM / `Killed` | Reduces sample size, adds disk guard |
-| `No module named X` | Inserts `%pip install -q X` cell |
-| CUDA out of memory | Clears GPU cache before training |
+| Error | Root Cause | Fix Applied |
+|---|---|---|
+| `SyntaxError: unterminated string literal` | Patch wrote stray `"` into cell source | Removes stray `"` after closing `)` |
+| `NameError: 'runtime_environment'` | Patch truncated cell, deleted variable | Restores deleted variable definition |
+| `KeyError: 'archive_path'` | Missing keys in fallback dict | Adds missing keys to fallback result dict |
+| `FileNotFoundError` (hardcoded path) | Hardcoded path bypasses dynamic lookup | Replaces with `_ds_root()` dynamic lookup |
+| `FileNotFoundError` in `_ds_root` | Missing search root for pre-attached datasets | Adds `/kaggle/input/datasets/` as search root |
+| `KeyError: 'benign'/'malicious'` | Single-class slice at tiny sample size | `classification_report.get()` fallback to 0.0 |
+| `ValueError: 'attack' is not in list` | Label mismatch (`"malicious"` vs `"attack"`) | Normalises y_true at scoring entry point |
+| `ValueError: At least one label not in y_true` | Dynamic labels not in static `labels=` arg | Filters confusion matrix labels to present classes |
+| `AssertionError` on label checks | Hard assert fails on tiny/unbalanced sample | Converts hard asserts to soft `[WARN]` prints |
+| `NameError: 'live_feature_coverage_df'` | Suite gate missing stub variable | Injects `varname = {}` stub before gate print |
+| `IndentationError` from injected stub | Wrong indentation in auto-injected code | Matches surrounding indentation level |
+| `DeadKernelError` / OOM / `Killed` | Linux OOM killer (large dataset glob) | Caps `bot_paths` to 20 representative files |
+| `_RUN_SAMPLE = None` → full run at 50 samples | `LIVE_REPLAY_CONFIG` key present with `None` | Uses `or fallback` instead of `.get(key, default)` |
+| `No module named X` | Missing package on Kaggle image | Inserts `%pip install -q X` as first cell |
+| CUDA out of memory | GPU OOM during training | Clears GPU cache, halves batch size |
+
+> See [docs/AUTOFIX_TECHNIQUE.md](docs/AUTOFIX_TECHNIQUE.md) for the full technique write-up, all error patterns with root cause analysis, and future work.
 
 ---
 
@@ -276,6 +282,8 @@ Options:
 kaggle-run-skill/
 ├── README.md                    # This file
 ├── LICENSE                      # MIT
+├── docs/
+│   └── AUTOFIX_TECHNIQUE.md     # Full technique write-up + future work
 ├── skills/
 │   └── kaggle-run/
 │       └── SKILL.md             # Main skill definition (Claude Code + skills.sh format)
