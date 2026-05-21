@@ -605,6 +605,93 @@ Edit the notebook JSON in-place, save with `ensure_ascii=True`, push again. Coun
 
 ---
 
+### B-10: Auto-Fix Loop Script (automated, hands-off)
+
+For long-running overnight runs use `kaggle_autofix_loop.py` instead of the manual B-6/B-8 cycle. It polls, patches, and re-pushes autonomously.
+
+**Location:** `C:/Users/HP/Documents/GitHub/ai-ml/AI-RESEARCH/kaggle_autofix_loop.py`
+
+**Run:**
+```bash
+cd "C:/Users/HP/Documents/GitHub/ai-ml/AI-RESEARCH"
+python kaggle_autofix_loop.py
+```
+
+**Key config at top of file:**
+```python
+NB_PUSH  = ".../kaggle_push_final_master/notebook.ipynb"
+PUSH_DIR = ".../kaggle_push_final_master"
+KERNEL   = "hammadshakeelai/final-master-research-workflow"
+VERSION  = 43          # update to current push count before running
+MAX_ATTEMPTS = 40
+```
+
+**How it works:**
+1. `poll_until_done()` — polls `kaggle kernels status` every 60s (7200s timeout)
+2. On ERROR: downloads NDJSON log, parses stderr, calls `apply_fix()`
+3. If fix applied: `save_nb()` → `push_nb()` (increments `VERSION`) → loop again
+4. If no rule matched: prints stderr tail, stops
+5. On COMPLETE: downloads outputs to `kaggle_outputs_test/`, then patches `PHASE1_SAMPLE_PER_DATASET = 100000` and pushes full run
+
+**Fix rules in `apply_fix()` (in order):**
+
+| Rule | Trigger | Patch |
+|---|---|---|
+| 1 | `KeyError: 'benign\|malicious\|attack'` | `per_class_f1()` → `.get()` fallback |
+| 2 | `At least one label...in y_true` | normalize `y_true` + safe `confusion_matrix` |
+| 3 | `Only one class present in y_true` | guard `roc_auc_score` / `pr_auc` with `len(set()) > 1` |
+| 4 | `ValueError\|KeyError.*attack` | flexible `attack_idx` via `next()` |
+| 4b | `KeyError: 'model'` | `render_figure_4_methods()` empty-guard |
+| 4c | `KeyError: 'method'` | `live_phase2_df.pivot()` empty-guard |
+| 5 | `KeyError: '<col>'` (non-label) | inject missing column into suite-gate stub |
+| 6 | `NameError: name '...'` | auto-stub variable in suite gate |
+| 7 | `No module named '...'` | `%pip install` (dedup across all cells) |
+| 8 | `GaussianMixture` / `sum(pvals)` | `covariance_type='full'`, `reg_covar=1e-2` |
+
+**Gotchas:**
+- `DeadKernelError` = Linux OOM kill — not a Python exception, no rule matches → kernel dies silently. Fix: reduce `chunksize` / `N_BaIoT_FILES`.
+- `download_log(VERSION)` is called **before** `push_nb()` increments `VERSION` — this is correct (downloads the errored version's log).
+- If the loop stops with "No rule matched", read `kaggle_logs_vN/final-master-research-workflow.log`, find the Exception block, and add a new rule.
+
+---
+
+### B-11: Parallel Multi-Size Sweep
+
+Once the test run (5k samples) completes, launch 3 kernels simultaneously at 25k/50k/100k.
+
+**Location:** `C:/Users/HP/Documents/GitHub/ai-ml/AI-RESEARCH/kaggle_parallel_sizes.py`
+
+**Run (immediately):**
+```bash
+python kaggle_parallel_sizes.py
+```
+
+**Run (wait for main kernel to finish first):**
+```bash
+python kaggle_parallel_sizes.py --wait-for-v35
+```
+
+**Config:**
+```python
+SAMPLE_SIZES = [25_000, 50_000, 100_000]
+USERNAME     = "hammadshakeelai"
+V35_KERNEL   = f"{USERNAME}/final-master-research-workflow"  # main kernel to wait for
+BASE_NB      = ".../kaggle_push_final_master/notebook.ipynb"
+ROOT         = ".../kaggle_parallel_runs"   # outputs go here
+```
+
+**What it does:**
+1. For each sample size, copies `BASE_NB`, patches `PHASE1_SAMPLE_PER_DATASET = N`, saves to `ROOT/<slug>/`
+2. Pushes all kernels (3s delay between pushes to avoid rate-limit)
+3. Monitors all 3 in parallel threads (5h hard cap)
+4. On COMPLETE: downloads outputs to `outputs_<slug>/`
+5. On ERROR: downloads logs to `logs_<slug>/`
+6. Prints summary table: kernel / samples / status / elapsed
+
+**Kernel slugs created:** `ids-research-25k`, `ids-research-50k`, `ids-research-100k`
+
+---
+
 ## Security
 
 - Never print, log, or echo credential files (`kaggle.json`, `access_token`, `.env`)
