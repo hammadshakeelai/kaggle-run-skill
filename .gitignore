@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+kaggle_logs_*/
+kaggle_outputs*/
+kaggle_parallel_*/
+kaggle_push_*/
+v*_stderr.txt
+v*_stdout.txt
+*.log
+.env

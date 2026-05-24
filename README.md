@@ -1,37 +1,53 @@
-# kaggle-run-skill v3.0
+# kaggle-run-skill v4.0
 
-> **The most complete Kaggle slash command for AI coding agents.**  
-> Built on [shepsci/kaggle-skill v2.3](https://github.com/shepsci/kaggle-skill) with full platform integration, automated notebook deployment, 11-pattern error recovery, 55-badge automation, and hackathon writeup retrieval — all in one skill.
+> **The ultimate Kaggle slash command for AI coding agents.**  
+> Token-minimal: ~150-line router skill + 7 fat Python scripts that handle all the work.  
+> Deploy notebooks, auto-fix 13 error patterns, compete, earn badges, analyze leaderboards.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Works with Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-blue)](https://claude.ai/code)
 [![Skills.sh Compatible](https://img.shields.io/badge/skills.sh-compatible-green)](https://skills.sh)
-[![Based on shepsci/kaggle-skill](https://img.shields.io/badge/based%20on-shepsci%2Fkaggle--skill-orange)](https://github.com/shepsci/kaggle-skill)
+
+---
+
+## Architecture: Thin Skill + Fat Scripts
+
+```
+skills/kaggle-run/
+├── SKILL.md          ← ~150-line router (what LLM reads at invocation)
+└── scripts/
+    ├── kaggle_deploy.py      ← B pipeline: push→monitor→autofix→download
+    ├── kaggle_compete.py     ← competitions: report, download, submit, scaffold
+    ├── kaggle_badges.py      ← 55 badges across 5 phases
+    ├── kaggle_datasets.py    ← datasets: search, download, publish
+    ├── kaggle_models.py      ← models: search, download, publish
+    ├── kaggle_leaderboard.py ← leaderboard pull + statistical analysis
+    └── kaggle_creds.py       ← credential check + MCP server config
+```
+
+**v3 → v4 token reduction:** SKILL.md went from 700 lines → 150 lines. The LLM reads 150 lines, calls one script, gets structured output. All fix logic, badge automation, and platform knowledge live in Python — zero LLM retry waste.
 
 ---
 
 ## What It Does
 
-`/kaggle-run` combines two modules:
+### Module A — Full Kaggle Platform
+- **Credentials** — API token (new) + legacy `kaggle.json`, both supported
+- **Competitions** — report, leaderboard analysis, data download, submission workflow, auto-submit pipeline
+- **Datasets** — search, download (CLI + kagglehub), publish, version
+- **Models** — search, download (CLI + kagglehub), publish
+- **Badge automation** — 55 badges across 5 phases (~38 fully automatable)
+- **Hackathon writeups** — rules, rubrics, MCP tool chain
+- **MCP server** — 66 Kaggle tools for AI agents
+- **Leaderboard analysis** — medal zone thresholds, score distribution, CSV export
 
-### Module A — Full Kaggle Platform Integration *(built on shepsci/kaggle-skill v2.3)*
-- **Credential setup** — API token (new format) + legacy `kaggle.json`, both supported
-- **Competition reports** — landscape, leaderboard, data files, submission workflow
-- **Dataset & model downloads** — CLI + kagglehub Python API
-- **Publishing** — upload datasets, models, notebooks with proper metadata
-- **Competition submissions** — `kaggle competitions submit` full workflow
-- **Badge automation** — 55 badges across 5 phases (~38 automatable)
-- **Hackathon writeup retrieval** — rules, rubrics, MCP tool chain
-- **MCP server setup** — 66 Kaggle tools for AI agents (Claude Code, Cursor, Gemini CLI)
-- **Platform knowledge** — hardware quotas, GPU/TPU specs, progression tiers
-
-### Module B — Notebook Deploy Pipeline *(unique to this skill)*
+### Module B — Notebook Deploy Pipeline
 - Push any `.ipynb` to Kaggle with one command
-- Monitor kernel status in real time (polls every 60s)
-- **Auto-fix 11 common errors** and retry automatically (up to 10×)
-- **1%-test-first strategy**: verifies full pipeline is runnable with 500 samples before committing to a full run
-- OOM guard: skips heavy optional runners on test runs
-- Download outputs on completion
+- Monitor kernel status (polls every 60s, 2-hour cap)
+- **Auto-fix 13 error patterns** and retry (up to 10×)
+- **1%-test-first**: verify pipeline runs at 500 samples before full run
+- Parallel multi-size sweep: push 3 kernels simultaneously
+- OOM + disk-space guards built in
 
 ---
 
@@ -42,65 +58,32 @@
 claude install-skill https://github.com/hammadshakeelai/kaggle-run-skill
 ```
 
-### skills.sh — Cursor, Gemini CLI, Codex, Windsurf, and 35+ agents
-```bash
-npx skills add hammadshakeelai/kaggle-run-skill
-```
-
-### Git clone + copy (Mac / Linux)
+### Git clone (Mac / Linux)
 ```bash
 git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
 cp -r kaggle-run-skill/skills/kaggle-run ~/.claude/skills/
 ```
 
-### Git clone + copy (Windows PowerShell)
+### Git clone (Windows PowerShell)
 ```powershell
 git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
 Copy-Item -Recurse kaggle-run-skill\skills\kaggle-run "$env:USERPROFILE\.claude\skills\"
 ```
 
+### skills.sh — Cursor, Gemini CLI, Codex, Windsurf, 35+ agents
+```bash
+npx skills add hammadshakeelai/kaggle-run-skill
+```
+> Scripts auto-download from GitHub on first `/kaggle-run` invocation (one-time, ~5s).
+
 ### curl one-liner (Mac / Linux)
 ```bash
-mkdir -p ~/.claude/skills/kaggle-run
-curl -fsSL https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run/SKILL.md \
-  -o ~/.claude/skills/kaggle-run/SKILL.md
-```
-
-### wget one-liner (Linux)
-```bash
-mkdir -p ~/.claude/skills/kaggle-run
-wget -q https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run/SKILL.md \
-  -O ~/.claude/skills/kaggle-run/SKILL.md
-```
-
-### Cursor / Windsurf (via skills.sh)
-```bash
-npx skills add hammadshakeelai/kaggle-run-skill --agent cursor
-```
-Then use `/kaggle-run` in any Cursor chat.
-
-### Gemini CLI
-```bash
-npx skills add hammadshakeelai/kaggle-run-skill --agent gemini
-```
-
-### OpenAI Codex CLI
-```bash
-npx skills add hammadshakeelai/kaggle-run-skill --agent codex
-```
-
-### Project-only install (skill applies to one repo only)
-```bash
-# Mac / Linux
-cp -r skills/kaggle-run .claude/skills/
-
-# Windows
-Copy-Item -Recurse skills\kaggle-run .claude\skills\
-```
-
-### Verify installation
-```
-/kaggle-run --help
+mkdir -p ~/.claude/skills/kaggle-run/scripts
+BASE="https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run"
+curl -fsSL "$BASE/SKILL.md" -o ~/.claude/skills/kaggle-run/SKILL.md
+for s in kaggle_deploy kaggle_compete kaggle_badges kaggle_datasets kaggle_models kaggle_leaderboard kaggle_creds; do
+    curl -fsSL "$BASE/scripts/${s}.py" -o ~/.claude/skills/kaggle-run/scripts/${s}.py
+done
 ```
 
 ---
@@ -108,102 +91,145 @@ Copy-Item -Recurse skills\kaggle-run .claude\skills\
 ## Usage
 
 ```
-/kaggle-run                                        # interactive menu (10 options)
-/kaggle-run my_notebook.ipynb                      # deploy notebook (auto-detect kernel)
-/kaggle-run myuser/my-kernel                       # deploy to specific kernel
-/kaggle-run notebook.ipynb myuser/kernel --sample 500    # 0.5% test run
-/kaggle-run notebook.ipynb myuser/kernel --sample 100000 # full run
-/kaggle-run --mode compete                         # competition report + submission
-/kaggle-run --mode dataset titanic                 # search & download dataset
-/kaggle-run --mode model google/gemma              # download model via kagglehub
-/kaggle-run --mode publish                         # publish dataset/model/notebook
-/kaggle-run --mode badge                           # badge automation (55 badges)
-/kaggle-run --mode hackathon kaggle-measuring-agi  # retrieve hackathon writeups
-/kaggle-run --mode mcp                             # configure MCP server
+/kaggle-run                                             # interactive menu
+/kaggle-run notebook.ipynb                              # deploy (auto-detect kernel)
+/kaggle-run notebook.ipynb user/kernel --sample 500     # 500-sample test run
+/kaggle-run notebook.ipynb user/kernel --full-run 100000  # test then full
+/kaggle-run --mode compete                              # competition report
+/kaggle-run --mode compete titanic --download           # download competition data
+/kaggle-run --mode compete titanic --submit preds.csv   # submit predictions
+/kaggle-run --mode dataset titanic                      # search & download dataset
+/kaggle-run --mode model google/gemma                   # download model
+/kaggle-run --mode publish                              # publish dataset/model
+/kaggle-run --mode badge                                # badge automation
+/kaggle-run --mode badge --phase 1                      # Phase 1 only (~16 badges)
+/kaggle-run --mode leaderboard titanic --analyze        # leaderboard + stats
+/kaggle-run --mode hackathon kaggle-measuring-agi       # hackathon writeup chain
+/kaggle-run --mode mcp                                  # configure MCP server
+/kaggle-run --mode submit titanic                       # auto-submit pipeline
 ```
+
+---
+
+## Standalone CLI (no AI agent)
+
+```bash
+pip install kaggle
+# Deploy
+python kaggle_deploy.py --nb notebook.ipynb --kernel user/name --sample 500
+# Full pipeline (test then full)
+python kaggle_deploy.py --nb notebook.ipynb --kernel user/name --sample 500 --full-run 100000
+# Monitor only
+python kaggle_deploy.py --kernel user/name --monitor-only
+# Parallel sweep
+python kaggle_deploy.py --nb notebook.ipynb --kernel user/name --parallel 25000,50000,100000
+# Competition
+python skills/kaggle-run/scripts/kaggle_compete.py --comp titanic --download
+# Badges
+python skills/kaggle-run/scripts/kaggle_badges.py --phase 1
+# Leaderboard
+python skills/kaggle-run/scripts/kaggle_leaderboard.py --comp titanic --analyze --thresholds
+```
+
+---
+
+## Auto-Fix Error Recovery (13 patterns)
+
+| Rule | Error | Fix |
+|---|---|---|
+| R1 | `KeyError: 'benign'/'malicious'/'attack'` | `per_class_f1` → `.get()` fallback |
+| R2 | `ValueError: At least one label not in y_true` | Normalise y_true + dynamic label list |
+| R3 | `ValueError: Only one class present` | `roc_auc_score` single-class guard |
+| R4 | `ValueError/'attack' is not in list` | Flexible `attack_idx` via `next()` |
+| R5 | `KeyError: '<col>'` (column) | Inject missing column stub |
+| R6 | `NameError: name '<var>'` | Stub variable + restore `runtime_environment` |
+| R7 | `No module named 'X'` | Prepend `%pip install -q X` |
+| R8 | `SyntaxError: unterminated string literal` | Remove stray `"` after `)` |
+| R9 | `DeadKernelError` / OOM / `MemoryError` | Cap glob to 20 files + disk guard |
+| R10 | `CUDA out of memory` | `torch.cuda.empty_cache()` + halve batch |
+| R11 | `KeyError: 'archive_path'` | Add missing keys to fallback dict |
+| R12 | `FileNotFoundError` in `_ds_root` | Add `/kaggle/input/datasets/` search root |
+| R13 | `AssertionError` on label checks | Convert hard asserts to soft `[WARN]` |
 
 ---
 
 ## Badge Automation (55 Badges, 5 Phases)
 
-The badge collector covers all automatable Kaggle badges:
-
-| Phase | Name | Badges | Time |
+| Phase | Badges | Method | Time |
 |---|---|---|---|
-| 1 | Instant API | ~16 | 5-10 min |
-| 2 | Competition | ~7 | 10-15 min |
-| 3 | Pipeline | ~3 | 15-30 min |
-| 4 | Browser | ~8 | 5-10 min |
-| 5 | Streaks | ~4 | Setup only |
+| 1 — Instant API | ~16 | Fully automated | ~10 min |
+| 2 — Competition | ~7 | CLI commands | ~15 min |
+| 3 — Pipeline | ~3 | API + CLI | ~30 min |
+| 4 — Browser | ~8 | Manual (guided) | ~10 min |
+| 5 — Streaks | ~4 | Time-based | Days |
 
-Phase 1 gets you `python_coder`, `api_notebook_creator`, `dataset_creator`, `api_dataset_creator`, `model_creator`, `api_model_creator`, and 10+ more — all in one session.
+Phase 1 fires automatically: `python_coder`, `r_coder`, `api_notebook_creator`, `dataset_creator`, `api_dataset_creator`, `model_creator`, `api_model_creator`, and 9 more — all in one `--phase 1` run.
 
 ---
 
-## Auto-Fix Error Recovery
+## Leaderboard Analysis
 
-When the kernel errors, the skill automatically:
+```bash
+python skills/kaggle-run/scripts/kaggle_leaderboard.py \
+    --comp titanic --top 50 --analyze --thresholds --export lb.csv
+```
 
-1. Downloads the NDJSON log
-2. Parses stderr lines and matches against the fix table
-3. Surgically patches the notebook JSON (never rewrites whole cells blindly)
-4. Re-pushes and resumes monitoring — up to 10× per session
+Output: top scores, medal zone cutoffs (gold/silver/bronze), top-10% / top-25% / median thresholds.
 
-Errors handled automatically:
+---
 
-| Error | Root Cause | Fix Applied |
+## v3 → v4 Changes
+
+| Feature | v3.0 | v4.0 |
 |---|---|---|
-| `SyntaxError: unterminated string literal` | Patch wrote stray `"` into cell source | Removes stray `"` after closing `)` |
-| `NameError: 'runtime_environment'` | Patch truncated cell, deleted variable | Restores deleted variable definition |
-| `KeyError: 'archive_path'` | Missing keys in fallback dict | Adds missing keys to fallback result dict |
-| `FileNotFoundError` (hardcoded path) | Hardcoded path bypasses dynamic lookup | Replaces with `_ds_root()` dynamic lookup |
-| `FileNotFoundError` in `_ds_root` | Missing search root for pre-attached datasets | Adds `/kaggle/input/datasets/` as search root |
-| `KeyError: 'benign'/'malicious'` | Single-class slice at tiny sample size | `classification_report.get()` fallback to 0.0 |
-| `ValueError: 'attack' is not in list` | Label mismatch (`"malicious"` vs `"attack"`) | Normalises y_true at scoring entry point |
-| `ValueError: At least one label not in y_true` | Dynamic labels not in static `labels=` arg | Filters confusion matrix labels to present classes |
-| `AssertionError` on label checks | Hard assert fails on tiny/unbalanced sample | Converts hard asserts to soft `[WARN]` prints |
-| `NameError: 'live_feature_coverage_df'` | Suite gate missing stub variable | Injects `varname = {}` stub before gate print |
-| `IndentationError` from injected stub | Wrong indentation in auto-injected code | Matches surrounding indentation level |
-| `DeadKernelError` / OOM / `Killed` | Linux OOM killer (large dataset glob) | Caps `bot_paths` to 20 representative files |
-| `_RUN_SAMPLE = None` → full run at 50 samples | `LIVE_REPLAY_CONFIG` key present with `None` | Uses `or fallback` instead of `.get(key, default)` |
-| `No module named X` | Missing package on Kaggle image | Inserts `%pip install -q X` as first cell |
-| CUDA out of memory | GPU OOM during training | Clears GPU cache, halves batch size |
-
-> See [docs/AUTOFIX_TECHNIQUE.md](docs/AUTOFIX_TECHNIQUE.md) for the full technique write-up, all error patterns with root cause analysis, and future work.
+| SKILL.md size | 700 lines | **~150 lines** |
+| Logic location | Inline in SKILL.md | **Fat Python scripts** |
+| Token burn at invocation | High (full 700 lines) | **Minimal (150 lines)** |
+| Auto-fix patterns | 11 | **13** |
+| Leaderboard analysis | ❌ | **✅** |
+| Auto-submit pipeline | ❌ | **✅** |
+| Competition scaffold | ❌ | **✅** |
+| Parallel sweep | B-11 script (separate) | **Built-in `--parallel` flag** |
+| scripts/ directory | ❌ | **✅ 7 scripts** |
+| Bootstrap (skills.sh users) | ❌ | **✅ auto-download** |
 
 ---
 
-## 1%-Test Strategy
+## Compared to shepsci/kaggle-skill v2.3
 
-Before a full run (which can take hours), the skill pushes a **500-sample version** to verify the entire pipeline end-to-end in ~2 minutes.
-
-```
-You:   /kaggle-run notebook.ipynb myuser/kernel
-Skill: Running 500-sample test (v1)...
-Skill: Test PASSED in 2m 14s. Push full 100K run? [Yes/No]
-You:   Yes
-Skill: Pushing full run (v2)...
-Skill: COMPLETE. Downloaded 3 output files to kaggle_outputs/
-```
+| Feature | shepsci v2.3 | kaggle-run v4.0 |
+|---|---|---|
+| Competition reports | ✅ | ✅ |
+| Dataset + model downloads | ✅ | ✅ |
+| Publishing | ✅ | ✅ |
+| Badge automation (55 badges) | ✅ | ✅ |
+| Hackathon writeups | ✅ | ✅ |
+| MCP server (66 tools) | ✅ | ✅ |
+| Notebook deploy + monitor | ❌ | ✅ |
+| Auto-fix error recovery | ❌ | ✅ (13 patterns) |
+| 1%-test-first strategy | ❌ | ✅ |
+| Parallel multi-size sweep | ❌ | ✅ |
+| Leaderboard analysis | ❌ | ✅ |
+| Auto-submit pipeline | ❌ | ✅ |
+| Competition scaffold | ❌ | ✅ |
+| Standalone scripts | ❌ | ✅ |
+| Token-minimal SKILL.md | ❌ | ✅ (~150 lines) |
+| Windows compatible | Partial | ✅ |
 
 ---
 
 ## Credential Support
 
-Both Kaggle credential formats are supported:
-
-| Method | How to Get |
+| Method | Notes |
 |---|---|
-| `KAGGLE_API_TOKEN` env var | kaggle.com/settings → "Generate New Token" |
-| `~/.kaggle/access_token` | Same token saved to file |
-| `~/.kaggle/kaggle.json` | Legacy: "Create Legacy API Key" |
-| `KAGGLE_USERNAME` + `KAGGLE_KEY` | Legacy key pair env vars |
+| `KAGGLE_API_TOKEN` env | Recommended — works with CLI ≥ 1.8, kagglehub ≥ 0.4.1, MCP |
+| `~/.kaggle/access_token` | File-based equivalent |
+| `~/.kaggle/kaggle.json` | Legacy; still works |
+| `KAGGLE_USERNAME` + `KAGGLE_KEY` | Legacy env pair |
 
 ---
 
 ## MCP Server (66 Tools)
-
-Configure Kaggle's official MCP server for AI agent integration:
 
 ```bash
 # Claude Code
@@ -225,92 +251,25 @@ claude mcp add kaggle --transport http https://www.kaggle.com/mcp \
 
 ---
 
-## Standalone CLI
-
-Use `kaggle_deploy.py` without an AI agent:
-
-```bash
-pip install kaggle
-python kaggle_deploy.py --notebook notebook.ipynb --kernel myuser/my-kernel --sample 500
-```
-
-Options:
-```
---notebook     Path to .ipynb file
---kernel       Kaggle kernel ID (username/name)
---push-dir     Directory with kernel-metadata.json (default: kaggle_push_<slug>/)
---sample       Rows per dataset (default: full)
---output-dir   Download outputs here (default: kaggle_outputs/)
---log-dir      Download logs here (default: kaggle_logs/)
---monitor-only Skip push, just monitor current run
---poll         Status check interval in seconds (default: 60)
---max-wait     Max monitoring time in seconds (default: 7200)
-```
-
----
-
-## Compared to shepsci/kaggle-skill
-
-| Feature | shepsci/kaggle-skill v2.3 | kaggle-run-skill v3.0 |
-|---|---|---|
-| Competition reports | ✅ | ✅ |
-| Dataset downloads (CLI) | ✅ | ✅ |
-| Dataset downloads (kagglehub) | ✅ | ✅ |
-| Model downloads (CLI + kagglehub) | ✅ | ✅ |
-| Publishing (datasets/models/notebooks) | ✅ | ✅ |
-| Competition submissions | ✅ | ✅ |
-| Badge automation (55 badges / 5 phases) | ✅ | ✅ |
-| Hackathon writeup retrieval | ✅ | ✅ |
-| MCP server (66 tools) | ✅ | ✅ |
-| 35+ agent compatibility | ✅ | ✅ |
-| API token + legacy credentials | ✅ | ✅ |
-| Platform knowledge (GPU/TPU/quotas) | ✅ | ✅ |
-| Notebook deploy + monitor | ❌ | ✅ |
-| Auto-fix error recovery (11 patterns) | ❌ | ✅ |
-| 1%-test-first strategy | ❌ | ✅ |
-| OOM guard on test runs | ❌ | ✅ |
-| Disk-space guard | ❌ | ✅ |
-| Retry loop (up to 10×) | ❌ | ✅ |
-| Standalone CLI (`kaggle_deploy.py`) | ❌ | ✅ |
-| Windows compatible | Partial | ✅ |
-
----
-
-## File Structure
-
-```
-kaggle-run-skill/
-├── README.md                    # This file
-├── LICENSE                      # MIT
-├── docs/
-│   └── AUTOFIX_TECHNIQUE.md     # Full technique write-up + future work
-├── skills/
-│   └── kaggle-run/
-│       └── SKILL.md             # Main skill definition (Claude Code + skills.sh format)
-└── kaggle_deploy.py             # Standalone CLI script
-```
-
----
-
 ## Requirements
 
 - Python 3.10+
-- `pip install kaggle` (official Kaggle CLI)
-- A Kaggle account with an API token (kaggle.com/settings)
+- `pip install kaggle` — official Kaggle CLI
+- A Kaggle account with API token (kaggle.com/settings)
 
 **Optional:**
-- `pip install kagglehub` — for Python download API
-- `pip install kagglehub[pandas-datasets]` — for direct DataFrame loading
+- `pip install kagglehub` — Python download API
+- `pip install kagglehub[pandas-datasets]` — direct DataFrame loading
 
 ---
 
 ## Security
 
-- Credentials are never logged or echoed
-- Kaggle-returned content is treated as untrusted (never executed)
-- Dataset slugs are validated before shell use
-- All created resources default to private (`is_private: true`)
-- Rate limits respected: HTTP 429 → wait and retry, not loop
+- Credentials never logged or echoed
+- Kaggle-returned content treated as untrusted
+- Slugs validated before shell use
+- All created resources default to `is_private: true`
+- HTTP 429 → 2-min backoff (not tight retry loop)
 
 ---
 
@@ -318,11 +277,8 @@ kaggle-run-skill/
 
 MIT — see [LICENSE](LICENSE)
 
----
-
 ## Credits
 
-- **Module A**: Built on [shepsci/kaggle-skill v2.3](https://github.com/shepsci/kaggle-skill) (MIT) — comprehensive Kaggle platform integration
-- **Module B**: Deploy pipeline built through iterative debugging of real Kaggle kernel errors
-- **Platform knowledge**: Sourced from [kaggle.com/docs](https://www.kaggle.com/docs)
-- Compatible with the [skills.sh](https://skills.sh) cross-agent skill format
+- Module A base: [shepsci/kaggle-skill v2.3](https://github.com/shepsci/kaggle-skill) (MIT)
+- Module B: Deploy pipeline via iterative real-Kaggle-error debugging
+- Architecture: Thin-router + fat-scripts pattern for token efficiency
