@@ -53,21 +53,36 @@ skills/kaggle-run/
 
 ## Installation
 
-### Claude Code (recommended)
-```bash
-claude install-skill https://github.com/hammadshakeelai/kaggle-run-skill
-```
-
-### Git clone (Mac / Linux)
+### Git clone — Mac / Linux (recommended)
 ```bash
 git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
 cp -r kaggle-run-skill/skills/kaggle-run ~/.claude/skills/
 ```
 
-### Git clone (Windows PowerShell)
+### Git clone — Windows PowerShell
 ```powershell
 git clone https://github.com/hammadshakeelai/kaggle-run-skill.git
 Copy-Item -Recurse kaggle-run-skill\skills\kaggle-run "$env:USERPROFILE\.claude\skills\"
+```
+
+### curl one-liner — Mac / Linux
+```bash
+mkdir -p ~/.claude/skills/kaggle-run/scripts
+BASE="https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run"
+curl -fsSL "$BASE/SKILL.md" -o ~/.claude/skills/kaggle-run/SKILL.md
+for s in kaggle_deploy kaggle_compete kaggle_badges kaggle_datasets kaggle_models kaggle_leaderboard kaggle_creds; do
+    curl -fsSL "$BASE/scripts/${s}.py" -o ~/.claude/skills/kaggle-run/scripts/${s}.py
+done
+```
+
+### wget one-liner — Linux
+```bash
+mkdir -p ~/.claude/skills/kaggle-run/scripts
+BASE="https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run"
+wget -q "$BASE/SKILL.md" -O ~/.claude/skills/kaggle-run/SKILL.md
+for s in kaggle_deploy kaggle_compete kaggle_badges kaggle_datasets kaggle_models kaggle_leaderboard kaggle_creds; do
+    wget -q "$BASE/scripts/${s}.py" -O ~/.claude/skills/kaggle-run/scripts/${s}.py
+done
 ```
 
 ### skills.sh — Cursor, Gemini CLI, Codex, Windsurf, 35+ agents
@@ -76,14 +91,9 @@ npx skills add hammadshakeelai/kaggle-run-skill
 ```
 > Scripts auto-download from GitHub on first `/kaggle-run` invocation (one-time, ~5s).
 
-### curl one-liner (Mac / Linux)
-```bash
-mkdir -p ~/.claude/skills/kaggle-run/scripts
-BASE="https://raw.githubusercontent.com/hammadshakeelai/kaggle-run-skill/main/skills/kaggle-run"
-curl -fsSL "$BASE/SKILL.md" -o ~/.claude/skills/kaggle-run/SKILL.md
-for s in kaggle_deploy kaggle_compete kaggle_badges kaggle_datasets kaggle_models kaggle_leaderboard kaggle_creds; do
-    curl -fsSL "$BASE/scripts/${s}.py" -o ~/.claude/skills/kaggle-run/scripts/${s}.py
-done
+### Verify installation
+```
+/kaggle-run --mode badge --list
 ```
 
 ---
