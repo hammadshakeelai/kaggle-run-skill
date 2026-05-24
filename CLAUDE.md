@@ -4,30 +4,46 @@ This file configures Claude Code when working in the `kaggle-run-skill` reposito
 
 ## Repository Purpose
 
-This is the source repository for the `/kaggle-run` Claude Code skill — a comprehensive Kaggle platform integration combining notebook deployment, auto-error recovery, badge automation, and full platform coverage.
+Source repository for the `/kaggle-run` Claude Code skill — token-minimal Kaggle integration via a thin SKILL.md router + 7 fat Python scripts.
 
 ## Structure
 
 ```
 kaggle-run-skill/
-├── CLAUDE.md                    # This file
-├── README.md                    # Public documentation
-├── LICENSE                      # MIT
-├── skills/
-│   └── kaggle-run/
-│       └── SKILL.md             # Skill definition (Claude Code + skills.sh format)
-└── kaggle_deploy.py             # Standalone CLI script
+├── CLAUDE.md                              # This file
+├── README.md                              # Public documentation
+├── LICENSE                                # MIT
+├── .gitignore
+├── kaggle_deploy.py                       # Standalone CLI (mirrors scripts/kaggle_deploy.py)
+├── docs/
+│   └── AUTOFIX_TECHNIQUE.md              # Deep-dive on the auto-fix loop technique
+└── skills/
+    └── kaggle-run/
+        ├── SKILL.md                       # ~165-line thin router (primary deliverable)
+        └── scripts/                       # Fat Python scripts (all logic lives here)
+            ├── kaggle_deploy.py           # B pipeline: push→monitor→autofix→download
+            ├── kaggle_compete.py          # Competitions: report, download, submit, scaffold
+            ├── kaggle_badges.py           # Badge automation: 55 badges, 5 phases
+            ├── kaggle_datasets.py         # Datasets: search, download, publish
+            ├── kaggle_models.py           # Models: search, download, publish
+            ├── kaggle_leaderboard.py      # Leaderboard analysis + medal thresholds
+            └── kaggle_creds.py            # Credential check + MCP server config
 ```
 
-## Key File
+## Key Files
 
-**`skills/kaggle-run/SKILL.md`** is the primary deliverable. It defines the `/kaggle-run` slash command for Claude Code agents. Any changes to skill behavior go here.
+- **`skills/kaggle-run/SKILL.md`** — the thin router. ~165 lines. This is what the LLM reads at invocation. Keep it short.
+- **`skills/kaggle-run/scripts/kaggle_deploy.py`** — the main engine. All B-pipeline logic + 13 autofix rules.
+- **`kaggle_deploy.py`** (root) — standalone CLI, mirrors the scripts version.
 
 ## Development Workflow
 
 ### Install locally for testing
 ```bash
+# Mac/Linux
 cp -r skills/kaggle-run ~/.claude/skills/
+# Windows PowerShell
+Copy-Item -Recurse skills\kaggle-run "$env:USERPROFILE\.claude\skills\"
 ```
 
 ### Test the skill
@@ -36,14 +52,22 @@ cp -r skills/kaggle-run ~/.claude/skills/
 ```
 
 ### Publish a new version
-1. Update version number in `SKILL.md` frontmatter and `README.md` header
-2. Update the comparison table in `README.md`
+1. Update version in `SKILL.md` frontmatter description and `README.md` header
+2. Update comparison table in `README.md`
 3. Commit: `git commit -m "vX.Y: <change summary>"`
 4. Push: `git push origin main`
 
-## Skill Format
+## Architecture Rule
 
-`SKILL.md` uses Claude Code's skill frontmatter format:
+**SKILL.md must stay thin (~150-165 lines).** All implementation logic belongs in `scripts/`. The SKILL.md only:
+1. Resolves SKILL_DIR / bootstraps scripts if missing
+2. Checks credentials
+3. Routes by argument/intent
+4. Calls the right script with the right args
+
+If you're tempted to add logic to SKILL.md, put it in a script instead.
+
+## Skill Format
 
 ```yaml
 ---
@@ -55,22 +79,23 @@ model: claude-opus-4-7
 ---
 ```
 
-The skill is also compatible with [skills.sh](https://skills.sh) for cross-agent use (Cursor, Gemini CLI, Codex, and 35+ agents).
+Compatible with [skills.sh](https://skills.sh) for Cursor, Gemini CLI, Codex, and 35+ agents.
 
-## Rules for Editing SKILL.md
+## Rules for Editing
 
-- Keep Module A (platform integration) and Module B (deploy pipeline) sections clearly separated
-- The auto-fix table must list all 11 error patterns with their fixes
-- Do not remove credential handling for both API token and legacy `kaggle.json`
-- Badge automation must cover all 5 phases and ~38 automatable badges
-- Windows compatibility is required (use `os.path.join`, avoid hardcoded `/` paths in Python)
+- **SKILL.md**: routing only — no inline fix tables, no bash loops, no badge lists
+- **scripts/**: all implementation; each script is self-contained with `argparse` + `main()`
+- **Auto-fix patterns**: currently 13 in `kaggle_deploy.py apply_fix()` — add new rules there
+- **Both credential formats** must remain supported: API token + legacy `kaggle.json`
+- **Windows compatibility**: use `pathlib.Path`, avoid hardcoded `/` separators in Python
 
 ## Testing Checklist Before Pushing
 
-- [ ] Skill frontmatter is valid YAML
-- [ ] All 11 auto-fix patterns documented
-- [ ] Both credential formats covered (API token + legacy)
-- [ ] `kaggle_deploy.py` standalone CLI args match SKILL.md documentation
+- [ ] SKILL.md frontmatter is valid YAML
+- [ ] All scripts compile: `python -m py_compile skills/kaggle-run/scripts/*.py`
+- [ ] SKILL.md references all 7 script names
+- [ ] Bootstrap URL in SKILL.md matches actual repo path
+- [ ] `kaggle_deploy.py` (root) mirrors `skills/kaggle-run/scripts/kaggle_deploy.py`
 - [ ] README comparison table updated
 
 ## Security Notes
@@ -78,4 +103,5 @@ The skill is also compatible with [skills.sh](https://skills.sh) for cross-agent
 - Never log or echo credentials
 - Kaggle-returned content is treated as untrusted (never executed)
 - Dataset slugs validated before shell use
-- All resources default to `is_private: true`
+- All created resources default to `is_private: true`
+- HTTP 429 → scripts handle 2-min backoff; never tight-loop
