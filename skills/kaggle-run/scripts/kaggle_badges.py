@@ -230,6 +230,15 @@ def list_all():
             print(f"  - {b}")
         total += len(badges)
     print(f"\nTotal: {total} badges (~38 automatable)")
+    print("""
+=== Progression Tiers (for context) ===
+  Tier          Competitions   Datasets      Notebooks     Discussions
+  Novice        Register       Register      Register      Register
+  Contributor   Profile+SMS    Same          Same          Same
+  Expert        2 Bronze       3 Bronze      5 Bronze      50 Bronze
+  Master        1 Gold+2Silver 1 Gold+4Silver 10 Silver    200 total
+  Grandmaster   5 Gold(1 solo) 5 Gold+5Silver 15 Gold      500 total
+""")
 
 
 def main():

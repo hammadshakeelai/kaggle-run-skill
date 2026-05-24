@@ -66,6 +66,15 @@ def download_kagglehub(handle):
         print("ERROR: pip install kagglehub"); sys.exit(1)
 
 
+def publish_kagglehub(handle, path, license_name="Apache 2.0"):
+    try:
+        import kagglehub
+        result = kagglehub.model_upload(handle, path, license_name=license_name)
+        print(f"[kagglehub] model_upload → {result}")
+    except ImportError:
+        print("ERROR: pip install kagglehub"); sys.exit(1)
+
+
 def publish(path, title=None):
     path = Path(path)
     meta = path / "model-metadata.json"
@@ -98,6 +107,8 @@ def main():
     p.add_argument("--publish",      metavar="DIR")
     p.add_argument("--path",         default="./models")
     p.add_argument("--title")
+    p.add_argument("--handle",       help="Model handle for kagglehub publish (owner/model/framework/variation)")
+    p.add_argument("--license",      default="Apache 2.0")
     p.add_argument("--kagglehub",    action="store_true")
     p.add_argument("--accelerators", action="store_true")
     args = p.parse_args()
@@ -108,7 +119,9 @@ def main():
         if args.kagglehub:   download_kagglehub(args.download)
         else:                download_cli(args.download, args.path)
     elif args.info:          get_info(args.info)
-    elif args.publish:       publish(args.publish, args.title)
+    elif args.publish:
+        if args.kagglehub and args.handle: publish_kagglehub(args.handle, args.publish, args.license)
+        else:                              publish(args.publish, args.title)
     else:                    p.print_help()
 
 

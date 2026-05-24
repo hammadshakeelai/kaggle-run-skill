@@ -25,6 +25,7 @@ def check():
     if not (ok_token or ok_legacy):
         print("\nSETUP: kaggle.com/settings → API → Generate New Token")
         print(f"  Save to {token_file}  OR  export KAGGLE_API_TOKEN=<token>")
+        print(f"  Linux/Mac: chmod 600 {token_file}")
         return False
     print("\nStatus: OK")
     return True

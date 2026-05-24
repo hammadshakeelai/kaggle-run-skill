@@ -68,6 +68,15 @@ def download_kagglehub(slug, filename=None):
         print("ERROR: pip install kagglehub"); sys.exit(1)
 
 
+def publish_kagglehub(slug, path, license_name="CC0-1.0"):
+    try:
+        import kagglehub
+        result = kagglehub.dataset_upload(slug, path, license_name=license_name)
+        print(f"[kagglehub] dataset_upload → {result}")
+    except ImportError:
+        print("ERROR: pip install kagglehub"); sys.exit(1)
+
+
 def publish(path, title=None, version_notes=None, license_name="CC0-1.0"):
     path = Path(path)
     meta = path / "dataset-metadata.json"
@@ -105,14 +114,17 @@ def main():
     p.add_argument("--license",  default="CC0-1.0", choices=LICENSES)
     p.add_argument("--kagglehub", action="store_true")
     p.add_argument("--file",     help="Specific file for kagglehub load")
+    p.add_argument("--slug",     help="Slug for kagglehub publish (owner/name)")
     args = p.parse_args()
 
     if   args.search:   search(args.search)
-    elif args.download: (download_kagglehub if args.kagglehub else
-                         lambda s, _: download_cli(s, args.path))(args.download, args.file) \
-                        if args.kagglehub else download_cli(args.download, args.path)
+    elif args.download:
+        if args.kagglehub: download_kagglehub(args.download, args.file)
+        else:              download_cli(args.download, args.path)
     elif args.files:    list_files(args.files)
-    elif args.publish:  publish(args.publish, args.title, None, args.license)
+    elif args.publish:
+        if args.kagglehub and args.slug: publish_kagglehub(args.slug, args.publish, args.license)
+        else:                            publish(args.publish, args.title, None, args.license)
     elif args.version:  publish(args.version, args.title, args.message, args.license)
     else:               p.print_help()
 
